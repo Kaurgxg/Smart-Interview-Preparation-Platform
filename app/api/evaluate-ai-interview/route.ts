@@ -1,4 +1,4 @@
-import { detectPlagiarism } from '@/lib/plagiarism-detector'
+// app/api/evaluate-ai-interview/route.ts
 
 interface Answer {
   questionId: string
@@ -6,317 +6,218 @@ interface Answer {
   duration: number
   fillerWords: number
   speakingPace: number
+  confidence?: number
 }
 
-function evaluateAnswerQuality(transcript: string, duration: number): number {
-  const words = transcript.trim().split(/\s+/).length
-  const chars = transcript.length
-
-  // Scoring rules for answer quality
-  if (words < 20 || chars < 50) return 35 // Too short
-  if (words < 50 || chars < 150) return 55 // Somewhat short
-  if (words < 100 || chars < 300) return 70 // Good length
-  if (words < 200 || chars < 600) return 85 // Comprehensive
-  return 95 // Excellent depth
+interface Question {
+  id: string
+  question: string
+  category: 'behavioral' | 'technical' | 'problem-solving'
+  expectedDuration: number
 }
 
+// ─── Local communication scoring (objective math, no AI needed) ───────────────
 function evaluateCommunication(
-  transcript: string,
   fillerWords: number,
   speakingPace: number,
-  duration: number
+  duration: number,
+  transcript: string
 ): number {
   let score = 80
 
-  // Penalty for filler words (max -20)
   const fillerRate = duration > 0 ? (fillerWords / duration) * 60 : 0
-  if (fillerRate > 3) score -= 20
-  else if (fillerRate > 2) score -= 12
-  else if (fillerRate > 1) score -= 5
+  if (fillerRate > 4) score -= 22
+  else if (fillerRate > 2.5) score -= 14
+  else if (fillerRate > 1.5) score -= 7
+  else if (fillerRate <= 0.5 && fillerWords >= 0) score += 5
 
-  // Bonus/penalty for speaking pace (ideal: 120-160 WPM)
-  if (speakingPace < 100) score -= 8 // Too slow
-  else if (speakingPace > 180) score -= 5 // Too fast
-  else if (speakingPace >= 120 && speakingPace <= 160) score += 5 // Ideal pace
+  // Ideal pace: 120–160 WPM
+  if (speakingPace < 80) score -= 12
+  else if (speakingPace < 100) score -= 6
+  else if (speakingPace > 200) score -= 10
+  else if (speakingPace > 175) score -= 4
+  else if (speakingPace >= 120 && speakingPace <= 160) score += 6
 
-  // Bonus for varied sentence structure
-  const sentences = transcript.split(/[.!?]+/).filter((s) => s.trim()).length
-  if (sentences > 3) score += 5
+  const sentences = transcript.split(/[.!?]+/).filter((s) => s.trim().length > 4)
+  if (sentences.length >= 6) score += 5
+  else if (sentences.length <= 1) score -= 8
 
-  return Math.max(30, Math.min(100, score))
+  const wordCount = transcript.trim().split(/\s+/).filter(Boolean).length
+  if (wordCount < 10) return Math.min(score, 30)
+
+  return Math.max(20, Math.min(100, Math.round(score)))
 }
 
-function evaluateTechnicalDepth(transcript: string, category: string): number {
-  const lowerTranscript = transcript.toLowerCase()
-
-  const technicalTerms = [
-    'implement',
-    'algorithm',
-    'complexity',
-    'optimize',
-    'data structure',
-    'architecture',
-    'framework',
-    'database',
-    'api',
-    'performance',
-    'scalable',
-    'security',
-    'authentication',
-    'cache',
-    'query',
-    'function',
-    'method',
-    'class',
-    'module',
-  ]
-
-  const foundTerms = technicalTerms.filter((term) =>
-    lowerTranscript.includes(term)
-  ).length
-
-  let baseScore = 40
-  if (category === 'technical') {
-    // For technical questions, expect more technical terms
-    if (foundTerms >= 5) baseScore = 85
-    else if (foundTerms >= 3) baseScore = 70
-    else if (foundTerms >= 1) baseScore = 55
-  } else {
-    // For behavioral/problem-solving, some technical depth is good
-    if (foundTerms >= 3) baseScore = 75
-    else if (foundTerms >= 1) baseScore = 60
-  }
-
-  return baseScore
-}
-
-function evaluateSoftSkills(transcript: string): number {
-  const lowerTranscript = transcript.toLowerCase()
-
-  const softSkillTerms = [
-    'team',
-    'collaborate',
-    'communicate',
-    'leadership',
-    'listen',
-    'feedback',
-    'adapt',
-    'flexible',
-    'problem solving',
-    'initiative',
-    'responsibility',
-    'accountability',
-    'empathy',
-    'mentor',
-  ]
-
-  const foundTerms = softSkillTerms.filter((term) =>
-    lowerTranscript.includes(term)
-  ).length
-
-  let score = 50
-  if (foundTerms >= 4) score = 80
-  else if (foundTerms >= 2) score = 65
-  else if (foundTerms >= 1) score = 55
-
-  // Bonus for longer, more thoughtful responses
-  const words = transcript.split(/\s+/).length
-  if (words > 80) score += 10
-
-  return Math.min(100, score)
-}
-
-function generateStrengths(
-  answerQuality: number,
-  communication: number,
-  technicalDepth: number,
-  softSkills: number,
-  transcript: string
-): string[] {
-  const strengths: string[] = []
-
-  if (answerQuality >= 75) {
-    strengths.push('Provided detailed and comprehensive answers')
-  }
-
-  if (communication >= 80) {
-    strengths.push('Clear and fluent communication with minimal filler words')
-  }
-
-  if (technicalDepth >= 75) {
-    strengths.push('Strong technical knowledge demonstrated throughout')
-  }
-
-  if (softSkills >= 70) {
-    strengths.push('Good demonstration of soft skills and collaboration mindset')
-  }
-
-  if (transcript.length > 300) {
-    strengths.push('Thorough responses showing engagement with questions')
-  }
-
-  if (strengths.length === 0) {
-    strengths.push('Attempted to provide complete answers')
-  }
-
-  return strengths.slice(0, 3)
-}
-
-function generateAreasToImprove(
-  answerQuality: number,
-  communication: number,
-  technicalDepth: number,
+// ─── Claude AI evaluation ─────────────────────────────────────────────────────
+async function evaluateWithClaude(
+  questions: Question[],
+  answers: Answer[]
+): Promise<{
+  answerQuality: number
+  technicalDepth: number
   softSkills: number
-): string[] {
-  const areas: string[] = []
+  overallScore: number
+  strengths: string[]
+  areasToImprove: string[]
+  detailedFeedback: string
+  perQuestionFeedback: {
+    questionId: string
+    score: number
+    feedback: string
+    keyPoints: string[]
+    missedPoints: string[]
+  }[]
+}> {
+  const interviewTranscript = answers
+    .map((a, i) => {
+      const q = questions.find((q) => q.id === a.questionId)
+      if (!q) return null
+      const transcript = a.transcript?.trim() || '[No response — candidate did not answer]'
+      return `--- Question ${i + 1} [${q.category.toUpperCase()}] ---
+Question: ${q.question}
+Duration: ${a.duration}s | Speaking Pace: ${a.speakingPace} WPM | Filler Words: ${a.fillerWords}
+Answer: ${transcript}`
+    })
+    .filter(Boolean)
+    .join('\n\n')
 
-  if (answerQuality < 70) {
-    areas.push('Focus on providing more detailed and comprehensive answers')
+  const prompt = `You are an expert interview coach and evaluator with 15+ years of experience assessing candidates at top tech companies like Google, Meta, and Amazon.
+
+Evaluate the following mock interview session and return ONLY a valid JSON object. No markdown, no preamble, no explanation outside the JSON.
+
+INTERVIEW TRANSCRIPT:
+${interviewTranscript}
+
+SCORING RUBRIC:
+- answerQuality (0–100): Did the candidate actually answer the question? Penalise heavily for vague, off-topic, or empty answers. Reward structured, specific, example-driven answers. Use STAR method adherence for behavioral questions.
+- technicalDepth (0–100): For technical/problem-solving: correctness of concepts, use of proper terminology, depth of explanation. For behavioral questions: analytical thinking and logical reasoning shown. Score 0 only if truly no technical content exists.
+- softSkills (0–100): Collaboration, ownership, empathy, adaptability, communication mindset — shown through specific examples and framing, not just buzzwords.
+- overallScore (0–100): Holistic assessment. Weighted toward answerQuality (40%) and communication clarity (25%). Do NOT average mechanically — use professional judgment.
+- perQuestionFeedback: Evaluate each question individually. Be specific — reference what the candidate actually said, not generic advice.
+- strengths: 3 specific, evidence-based strengths. Reference actual things they said or demonstrated.
+- areasToImprove: 3 specific, actionable improvement points. Reference actual gaps observed.
+- detailedFeedback: 2–3 paragraph honest narrative. Be encouraging but direct about weaknesses.
+
+Return this exact JSON structure:
+{
+  "answerQuality": <integer 0-100>,
+  "technicalDepth": <integer 0-100>,
+  "softSkills": <integer 0-100>,
+  "overallScore": <integer 0-100>,
+  "strengths": ["<specific strength 1>", "<specific strength 2>", "<specific strength 3>"],
+  "areasToImprove": ["<actionable improvement 1>", "<actionable improvement 2>", "<actionable improvement 3>"],
+  "detailedFeedback": "<honest 2-3 paragraph summary>",
+  "perQuestionFeedback": [
+    {
+      "questionId": "<id>",
+      "score": <integer 0-100>,
+      "feedback": "<2-3 sentence specific feedback referencing their actual answer>",
+      "keyPoints": ["<something they did well>", "<another positive>"],
+      "missedPoints": ["<key thing they missed or could improve>"]
+    }
+  ]
+}`
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Claude API error: ${response.status}`)
   }
 
-  if (communication < 75) {
-    areas.push('Work on reducing filler words and speaking more confidently')
-  }
+  const data = await response.json()
+  const text = data.content
+    .map((block: { type: string; text?: string }) => (block.type === 'text' ? block.text : ''))
+    .join('')
+    .trim()
 
-  if (technicalDepth < 70) {
-    areas.push('Enhance technical terminology and industry knowledge references')
-  }
-
-  if (softSkills < 65) {
-    areas.push('Develop more explicit examples of teamwork and collaboration')
-  }
-
-  if (areas.length === 0) {
-    areas.push('Continue practicing to maintain consistency')
-  }
-
-  return areas.slice(0, 3)
+  // Strip markdown code fences if present
+  const cleaned = text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
+  return JSON.parse(cleaned)
 }
 
+// ─── Fallback evaluation (if Claude API fails) ────────────────────────────────
+function fallbackEvaluation(questions: Question[], answers: Answer[]) {
+  const hasContent = answers.some((a) => a.transcript?.trim().length > 20)
+
+  return {
+    answerQuality: hasContent ? 55 : 20,
+    technicalDepth: hasContent ? 50 : 15,
+    softSkills: hasContent ? 55 : 20,
+    overallScore: hasContent ? 52 : 18,
+    strengths: hasContent
+      ? ['Attempted to answer the questions provided', 'Engaged with the interview process', 'Demonstrated willingness to practice']
+      : ['Completed the interview session'],
+    areasToImprove: [
+      'Provide more detailed and structured answers',
+      'Use specific examples to support your points',
+      'Practice the STAR method (Situation, Task, Action, Result)',
+    ],
+    detailedFeedback:
+      'We were unable to generate detailed AI feedback at this time. Please try reviewing your answers below and consider re-attempting the interview for a full evaluation.',
+    perQuestionFeedback: answers.map((a) => ({
+      questionId: a.questionId,
+      score: a.transcript?.trim().length > 20 ? 55 : 20,
+      feedback: a.transcript?.trim()
+        ? 'Answer recorded. Re-attempt for detailed AI feedback.'
+        : 'No answer was recorded for this question.',
+      keyPoints: a.transcript?.trim() ? ['Answer was recorded successfully'] : [],
+      missedPoints: ['Detailed AI feedback unavailable — please retry'],
+    })),
+  }
+}
+
+// ─── Main handler ─────────────────────────────────────────────────────────────
 export async function POST(request: Request) {
   try {
     const { questions, answers } = await request.json()
 
-    if (!questions || !answers || answers.length === 0) {
-      return Response.json(
-        { error: 'Missing questions or answers' },
-        { status: 400 }
-      )
+    if (!questions?.length || !answers?.length) {
+      return Response.json({ error: 'Missing questions or answers' }, { status: 400 })
     }
 
-    // Evaluate each answer
-    const scores = {
-      answerQuality: 0,
-      communication: 0,
-      technicalDepth: 0,
-      softSkills: 0,
+    // Always compute communication score locally (it's objective)
+    const communicationScores = answers.map((a: Answer) =>
+      evaluateCommunication(a.fillerWords ?? 0, a.speakingPace ?? 0, a.duration ?? 0, a.transcript ?? '')
+    )
+    const communication = Math.round(
+      communicationScores.reduce((sum: number, s: number) => sum + s, 0) / communicationScores.length
+    )
+
+    // Try Claude AI evaluation, fall back gracefully
+    let aiResult
+    let usedFallback = false
+    try {
+      aiResult = await evaluateWithClaude(questions, answers)
+    } catch (err) {
+      console.error('Claude evaluation failed, using fallback:', err)
+      aiResult = fallbackEvaluation(questions, answers)
+      usedFallback = true
     }
 
-    let feedbackDetails = ''
-    let totalPlagiarismScore = 0
-    let plagiarismFlags: string[] = []
+    // Merge: AI scores + local communication score → final overall
+    const overallScore = Math.round(
+      aiResult.answerQuality * 0.35 +
+      communication * 0.25 +
+      aiResult.technicalDepth * 0.22 +
+      aiResult.softSkills * 0.18
+    )
 
-    answers.forEach((answer: Answer, idx: number) => {
-      const question = questions.find((q: any) => q.id === answer.questionId)
-      if (!question || !answer.transcript) return
-
-      const aq = evaluateAnswerQuality(answer.transcript, answer.duration)
-      const comm = evaluateCommunication(
-        answer.transcript,
-        answer.fillerWords,
-        answer.speakingPace,
-        answer.duration
-      )
-      const tech = evaluateTechnicalDepth(answer.transcript, question.category)
-      const soft = evaluateSoftSkills(answer.transcript)
-
-      // Plagiarism detection
-      const plagiarismResult = detectPlagiarism(answer.transcript)
-      totalPlagiarismScore += plagiarismResult.score
-      if (plagiarismResult.flags.length > 0) {
-        plagiarismFlags.push(...plagiarismResult.flags)
-      }
-
-      scores.answerQuality += aq
-      scores.communication += comm
-      scores.technicalDepth += tech
-      scores.softSkills += soft
-
-      feedbackDetails += `Q${idx + 1}: ${aq}/100 quality, ${comm}/100 communication, ${tech}/100 technical depth. `
+    return Response.json({
+      ...aiResult,
+      communication,
+      overallScore, // override AI's overall with our weighted formula
+      usedFallback,
     })
-
-    // Calculate averages
-    const count = Math.max(answers.length, 1)
-    const answerQuality = Math.round(scores.answerQuality / count)
-    const communication = Math.round(scores.communication / count)
-    const technicalDepth = Math.round(scores.technicalDepth / count)
-    const softSkills = Math.round(scores.softSkills / count)
-    const plagiarismScore = Math.round(totalPlagiarismScore / count)
-
-    // Calculate overall score (weighted average)
-    let overallScore = Math.round(
-      answerQuality * 0.35 +
-        communication * 0.25 +
-        technicalDepth * 0.25 +
-        softSkills * 0.15
-    )
-
-    // Penalty for plagiarism
-    if (plagiarismScore > 40) {
-      overallScore = Math.max(0, overallScore - Math.round((plagiarismScore - 40) * 0.5))
-    }
-
-    const transcript = answers.map((a: Answer) => a.transcript).join(' ')
-    const strengths = generateStrengths(
-      answerQuality,
-      communication,
-      technicalDepth,
-      softSkills,
-      transcript
-    )
-    const areasToImprove = generateAreasToImprove(
-      answerQuality,
-      communication,
-      technicalDepth,
-      softSkills
-    )
-
-    const detailedFeedback = `
-Based on your interview performance, here's comprehensive feedback:
-
-Answer Quality (${answerQuality}/100): Your responses demonstrate ${answerQuality >= 80 ? 'excellent depth and completeness' : answerQuality >= 60 ? 'good coverage of topics' : 'room for more detailed responses'}.
-
-Communication (${communication}/100): Your speaking style shows ${communication >= 80 ? 'confidence and clarity with minimal filler words' : communication >= 60 ? 'decent flow with some areas to improve' : 'potential to work on clarity and confidence'}.
-
-Technical Depth (${technicalDepth}/100): Your technical knowledge is ${technicalDepth >= 75 ? 'impressive with strong terminology usage' : technicalDepth >= 60 ? 'solid and demonstrates understanding' : 'developing; consider more technical references'}.
-
-Soft Skills (${softSkills}/100): You ${softSkills >= 70 ? 'effectively demonstrate collaboration and interpersonal skills' : softSkills >= 50 ? 'show some soft skills awareness' : 'could benefit from more examples of teamwork'}.
-
-Authenticity Check (${plagiarismScore}/100): ${plagiarismScore <= 20 ? 'Your responses appear completely original' : plagiarismScore <= 40 ? 'Mostly original with some common patterns' : 'Some concerns about response originality detected: ' + plagiarismFlags.join(', ')}.
-
-Overall Performance: With a score of ${overallScore}/100, you are ${overallScore >= 80 ? 'performing exceptionally well' : overallScore >= 60 ? 'performing satisfactorily with room for improvement' : 'encouraged to practice more interview scenarios'}.
-
-${feedbackDetails}
-    `
-
-    const evaluation = {
-      answerQuality,
-      communication,
-      technicalDepth,
-      softSkills,
-      plagiarismScore,
-      overallScore,
-      strengths,
-      areasToImprove,
-      detailedFeedback: detailedFeedback.trim(),
-    }
-
-    return Response.json(evaluation)
   } catch (error) {
     console.error('Evaluation error:', error)
-    return Response.json(
-      { error: 'Failed to evaluate interview' },
-      { status: 500 }
-    )
+    return Response.json({ error: 'Failed to evaluate interview' }, { status: 500 })
   }
 }

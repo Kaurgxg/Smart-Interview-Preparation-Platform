@@ -139,4 +139,29 @@ export const INTERVIEW_TYPE_CONFIG: Record<
   },
 }
 
+// Add these to your lib/types.ts — replace the existing AIFeedback interface
+
+export interface PerQuestionFeedback {
+  questionId: string
+  score: number
+  feedback: string
+  keyPoints: string[]
+  missedPoints: string[]
+}
+
+export interface AIFeedback {
+  answerQuality: number
+  communication: number
+  technicalDepth: number
+  softSkills: number
+  confidence?: number
+  plagiarismScore?: number
+  overallScore: number
+  strengths: string[]
+  areasToImprove: string[]
+  detailedFeedback: string
+  perQuestionFeedback?: PerQuestionFeedback[]  // ← new
+  usedFallback?: boolean                        // ← new (shows warning if AI failed)
+}
+
 export const VIOLATION_THRESHOLD = 3
