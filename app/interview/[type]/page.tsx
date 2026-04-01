@@ -49,7 +49,6 @@ export default function InterviewPage({
 }) {
   const { type: rawType } = use(params)
   const type = rawType as InterviewType
-  const router = useRouter()
   const config = INTERVIEW_TYPE_CONFIG[type]
 
   if (!config) {
@@ -99,6 +98,7 @@ function InterviewSession({
   } = useInterview(type)
 
   const [codeAnswers, setCodeAnswers] = useState<Map<string, string>>(new Map())
+  const [editedCodeQuestions, setEditedCodeQuestions] = useState<Set<string>>(new Set())
 
   // Initialize coding starter code once questions are ready
   const [codeInitialized, setCodeInitialized] = useState(false)
@@ -115,16 +115,21 @@ function InterviewSession({
 
   const handleFinish = useCallback(
     (violations: number) => {
-      // Submit any unsaved coding answers
+      // Submit only genuinely edited coding answers
       for (const [qId, code] of codeAnswers) {
-        if (!answers.has(qId)) {
+        if (
+          !answers.has(qId) &&
+          editedCodeQuestions.has(qId) &&
+          code.trim()
+        ) {
           submitCode(qId, code)
         }
       }
+
       const sessionId = finishInterview(violations)
       router.push(`/results/${sessionId}`)
     },
-    [codeAnswers, answers, submitCode, finishInterview, router]
+    [codeAnswers, editedCodeQuestions, answers, submitCode, finishInterview, router]
   )
 
   const {
@@ -150,6 +155,13 @@ function InterviewSession({
         next.set(questionId, code)
         return next
       })
+
+      setEditedCodeQuestions((prev) => {
+        const next = new Set(prev)
+        next.add(questionId)
+        return next
+      })
+
       submitCode(questionId, code)
     },
     [submitCode]
@@ -167,9 +179,6 @@ function InterviewSession({
 
   const handleJump = useCallback(
     (index: number) => {
-      // Using goToNext/goToPrevious in sequence would be slow.
-      // Directly setting by clicking the progress dots.
-      // We'll need to adapt the hook -- for now use next/prev
       const diff = index - currentIndex
       if (diff > 0) {
         for (let i = 0; i < diff; i++) goToNext()
@@ -207,7 +216,6 @@ function InterviewSession({
         onDismiss={dismissWarning}
       />
 
-      {/* Header */}
       <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
@@ -242,7 +250,6 @@ function InterviewSession({
         </div>
       </header>
 
-      {/* Main content */}
       <main className="mx-auto max-w-5xl px-4 py-6">
         <QuestionProgress
           current={currentIndex}
@@ -276,7 +283,6 @@ function InterviewSession({
           )}
         </div>
 
-        {/* Navigation */}
         <div className="mt-6 flex items-center justify-between">
           <Button
             variant="outline"
