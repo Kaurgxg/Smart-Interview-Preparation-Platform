@@ -1,8 +1,15 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Brain, ArrowRight } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
 
 export function Hero() {
+  const { user, isAdmin } = useAuth()
+  const primaryHref = user ? (isAdmin ? "/admin" : "/dashboard") : "/login"
+  const primaryLabel = user ? (isAdmin ? "Open Admin" : "Open Dashboard") : "Get Started"
+
   return (
     <section className="flex flex-col items-center gap-8 px-4 pt-24 pb-16 text-center md:pt-32 md:pb-24">
       <div className="flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-sm text-primary">
@@ -22,8 +29,8 @@ export function Hero() {
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Button asChild size="lg" className="gap-2 px-8 text-base">
-          <Link href="/dashboard">
-            Start Practicing
+          <Link href={primaryHref}>
+            {primaryLabel}
             <ArrowRight className="size-4" />
           </Link>
         </Button>

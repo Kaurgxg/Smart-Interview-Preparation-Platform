@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -25,9 +26,10 @@ import { StatsCards } from "@/components/dashboard/stats-cards"
 import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { WeakTopics } from "@/components/dashboard/weak-topics"
 import { HistoryTable } from "@/components/dashboard/history-table"
+import { getInterviewModes, subscribeToInterviewCatalogUpdates } from "@/lib/interview-catalog"
 import { getStats, getHistory, clearHistory } from "@/lib/store"
-import { INTERVIEW_TYPE_CONFIG } from "@/lib/types"
-import type { InterviewStats, InterviewSession, InterviewType } from "@/lib/types"
+import { useAuth } from "@/hooks/use-auth"
+import type { InterviewModeConfig, InterviewStats, InterviewSession } from "@/lib/types"
 import {
   Brain,
   Code,
@@ -37,7 +39,10 @@ import {
   ArrowRight,
   Trash2,
   Rocket,
+  LogOut,
+  UserCircle2,
 } from "lucide-react"
+import { toast } from "sonner"
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   brain: Brain,
@@ -47,27 +52,81 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   microphone: Mic,
 }
 
-const typeOrder: InterviewType[] = ["aptitude", "technical", "hr", "coding", "ai-interviewer"]
-
 export default function DashboardPage() {
+  const router = useRouter()
+  const { user, isAdmin, isLoading: authLoading, signOut } = useAuth()
   const [stats, setStats] = useState<InterviewStats | null>(null)
   const [sessions, setSessions] = useState<InterviewSession[]>([])
+  const [clearingData, setClearingData] = useState(false)
+  const [modes, setModes] = useState<InterviewModeConfig[]>([])
 
-  const loadData = useCallback(() => {
-    setStats(getStats())
-    setSessions(getHistory())
+  const loadData = useCallback(async () => {
+    const [rawStats, history] = await Promise.all([getStats(), getHistory()])
+
+    const safeStats: InterviewStats = {
+      totalAttempts: rawStats?.totalAttempts ?? 0,
+      averageScore: rawStats?.averageScore ?? 0,
+      bestScore: rawStats?.bestScore ?? 0,
+      totalTime: rawStats?.totalTime ?? 0,
+      weakTopics: rawStats?.weakTopics ?? [],
+      scoreHistory: rawStats?.scoreHistory ?? [],
+    }
+
+    setStats(safeStats)
+    setSessions(history ?? [])
   }, [])
 
   useEffect(() => {
-    loadData()
+    void loadData()
   }, [loadData])
 
-  const handleClearHistory = () => {
-    clearHistory()
-    loadData()
+  useEffect(() => {
+    const loadModes = () => {
+      setModes(getInterviewModes())
+    }
+
+    loadModes()
+    return subscribeToInterviewCatalogUpdates(loadModes)
+  }, [])
+
+  const handleClearHistory = async () => {
+    const previousStats = stats
+    const previousSessions = sessions
+
+    setClearingData(true)
+    setSessions([])
+    setStats({
+      totalAttempts: 0,
+      averageScore: 0,
+      bestScore: 0,
+      totalTime: 0,
+      weakTopics: [],
+      scoreHistory: [],
+    })
+
+    try {
+      await clearHistory()
+      await loadData()
+      toast.success("All saved interview data was cleared.")
+    } catch (error) {
+      setSessions(previousSessions)
+      setStats(previousStats)
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to clear saved interview data."
+      )
+    } finally {
+      setClearingData(false)
+    }
   }
 
-  if (!stats) {
+  const handleSignOut = async () => {
+    await signOut()
+    router.push("/login")
+  }
+
+  if (authLoading || !stats) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex items-center gap-2 text-muted-foreground">
@@ -93,12 +152,23 @@ export default function DashboardPage() {
             <span className="text-lg font-bold">InterviewAce</span>
           </Link>
           <div className="flex items-center gap-2">
+            {user && (
+              <div className="hidden items-center gap-3 rounded-lg border border-border/60 bg-card/70 px-3 py-2 sm:flex">
+                <UserCircle2 className="size-4 text-primary" />
+                <div className="leading-tight">
+                  <p className="text-sm font-medium text-foreground">
+                    {user.fullName || "Candidate"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                </div>
+              </div>
+            )}
             {sessions.length > 0 && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
                     <Trash2 className="size-3" />
-                    Clear Data
+                    {clearingData ? "Clearing..." : "Clear Data"}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -111,20 +181,43 @@ export default function DashboardPage() {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleClearHistory}>
+                    <AlertDialogAction
+                      onClick={() => void handleClearHistory()}
+                      disabled={clearingData}
+                    >
                       Delete All
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
             )}
+            {isAdmin && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2 text-muted-foreground"
+                onClick={() => router.push("/admin")}
+              >
+                <Brain className="size-3.5" />
+                Admin
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2 text-muted-foreground"
+              onClick={() => void handleSignOut()}
+            >
+              <LogOut className="size-3.5" />
+              Sign out
+            </Button>
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8">
         {stats.totalAttempts === 0 ? (
-          <EmptyState />
+          <EmptyState modes={modes} />
         ) : (
           <div className="flex flex-col gap-6">
             <StatsCards stats={stats} />
@@ -140,13 +233,15 @@ export default function DashboardPage() {
                 Quick Start
               </h2>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                {typeOrder.map((type) => {
-                  const config = INTERVIEW_TYPE_CONFIG[type]
-                  const Icon = iconMap[config.icon]
-                  const href = type === "ai-interviewer" ? `/interview/ai-mode` : `/interview/${type}`
+                {modes.map((mode) => {
+                  const Icon = iconMap[mode.icon] ?? Brain
+                  const href =
+                    mode.kind === "ai-interviewer"
+                      ? `/interview/ai-mode?mode=${encodeURIComponent(mode.id)}`
+                      : `/interview/${mode.id}`
                   return (
                     <Button
-                      key={type}
+                      key={mode.id}
                       asChild
                       variant="outline"
                       className="h-auto justify-start gap-3 px-4 py-3"
@@ -155,10 +250,10 @@ export default function DashboardPage() {
                         <Icon className="size-5 text-primary" />
                         <div className="text-left">
                           <p className="text-sm font-medium">
-                            {config.label}
+                            {mode.label}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {config.questionCount} questions
+                            {mode.questionCount} questions
                           </p>
                         </div>
                       </Link>
@@ -174,7 +269,7 @@ export default function DashboardPage() {
   )
 }
 
-function EmptyState() {
+function EmptyState({ modes }: { modes: InterviewModeConfig[] }) {
   return (
     <div className="flex flex-col items-center gap-8 py-20">
       <div className="flex size-20 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -192,13 +287,15 @@ function EmptyState() {
       </div>
 
       <div className="grid w-full max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {typeOrder.map((type) => {
-          const config = INTERVIEW_TYPE_CONFIG[type]
-          const Icon = iconMap[config.icon]
-          const href = type === "ai-interviewer" ? `/interview/ai-mode` : `/interview/${type}`
+        {modes.map((mode) => {
+          const Icon = iconMap[mode.icon] ?? Brain
+          const href =
+            mode.kind === "ai-interviewer"
+              ? `/interview/ai-mode?mode=${encodeURIComponent(mode.id)}`
+              : `/interview/${mode.id}`
           return (
             <Card
-              key={type}
+              key={mode.id}
               className="border-border/50 bg-card/50 transition-colors hover:border-primary/30"
             >
               <CardHeader className="pb-3">
@@ -206,10 +303,10 @@ function EmptyState() {
                   <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <Icon className="size-5" />
                   </div>
-                  <CardTitle className="text-base">{config.label}</CardTitle>
+                  <CardTitle className="text-base">{mode.label}</CardTitle>
                 </div>
                 <CardDescription className="text-xs">
-                  {config.questionCount} questions, {config.timePerQuestion}s
+                  {mode.questionCount} questions, {mode.timePerQuestion}s
                   each
                 </CardDescription>
               </CardHeader>

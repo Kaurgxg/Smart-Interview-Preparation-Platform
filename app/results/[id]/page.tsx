@@ -8,7 +8,7 @@ import { TopicBreakdown } from "@/components/results/topic-breakdown"
 import { AiFeedback } from "@/components/results/ai-feedback"
 import { AnswerReview } from "@/components/results/answer-review"
 import { AIInterviewerResults } from "@/components/results/ai-interviewer-results"
-import { getSession } from "@/lib/store"
+import { getAISession, getSession } from "@/lib/store"
 import type { InterviewSession, AIQuestion, AIAnswer } from "@/lib/types"
 import {
   Brain,
@@ -25,23 +25,39 @@ export default function ResultsPage({
 }) {
   const { id } = use(params)
   const [session, setSession] = useState<InterviewSession | null>(null)
-  const [aiSession, setAISession] = useState<any>(null)
+  const [aiSession, setAISession] = useState<{
+    sessionId: string
+    questions: AIQuestion[]
+    answers: AIAnswer[]
+  } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Try to get regular interview session
-    const data = getSession(id)
-    if (data) {
-      setSession(data)
-    } else {
-      // Try to get AI interview session
-      const aiInterviews = JSON.parse(localStorage.getItem('aiInterviews') || '[]')
-      const aiData = aiInterviews.find((s: any) => s.sessionId === id)
-      if (aiData) {
-        setAISession(aiData)
+    let cancelled = false
+
+    const loadResults = async () => {
+      const data = await getSession(id)
+      if (cancelled) return
+
+      if (data) {
+        setSession(data)
+        setAISession(null)
+        setLoading(false)
+        return
       }
+
+      const aiData = await getAISession(id)
+      if (cancelled) return
+
+      setAISession(aiData)
+      setLoading(false)
     }
-    setLoading(false)
+
+    void loadResults()
+
+    return () => {
+      cancelled = true
+    }
   }, [id])
 
   if (loading) {
@@ -92,6 +108,7 @@ export default function ResultsPage({
 
         <main className="mx-auto max-w-5xl px-4 py-8">
           <AIInterviewerResults 
+            sessionId={aiSession.sessionId}
             questions={aiSession.questions as AIQuestion[]} 
             answers={aiSession.answers as AIAnswer[]} 
           />
@@ -114,6 +131,10 @@ export default function ResultsPage({
         </main>
       </div>
     )
+  }
+
+  if (!session) {
+    return null
   }
 
   // Regular Interview Session
@@ -147,14 +168,14 @@ export default function ResultsPage({
         <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
           {/* Left Column - Score */}
           <div>
-            <ScoreSummary session={session!} />
+            <ScoreSummary session={session} />
           </div>
 
           {/* Right Column - Details */}
           <div className="flex flex-col gap-6">
-            <TopicBreakdown session={session!} />
-            <AiFeedback session={session!} />
-            <AnswerReview session={session!} />
+            <TopicBreakdown session={session} />
+            <AiFeedback session={session} />
+            <AnswerReview session={session} />
 
             {/* Actions */}
             <div className="flex flex-wrap gap-3">

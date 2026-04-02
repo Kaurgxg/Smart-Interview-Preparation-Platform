@@ -2,13 +2,13 @@
 
 import { useState, useCallback, useRef, useEffect } from "react"
 import type {
+  InterviewModeConfig,
   InterviewType,
   Question,
   CodingQuestion,
   Answer,
   InterviewSession,
 } from "./types"
-import { INTERVIEW_TYPE_CONFIG } from "./types"
 import { getQuestions } from "./questions"
 import { saveSession } from "./store"
 
@@ -18,15 +18,16 @@ function isCodingQuestion(
   return "starterCode" in q
 }
 
-export function useInterview(type: InterviewType) {
-  const config = INTERVIEW_TYPE_CONFIG[type]
+export type StandardInterviewType = Exclude<InterviewType, "ai-interviewer">
+
+export function useInterview(type: StandardInterviewType, config: InterviewModeConfig) {
   const [questions, setQuestions] = useState<(Question | CodingQuestion)[]>([])
   const [ready, setReady] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
 
   // Defer random shuffling to client-only to avoid hydration mismatch
   useEffect(() => {
-    setQuestions(getQuestions(type, config.questionCount))
+    setQuestions(getQuestions(type, config.questionCount) as (Question | CodingQuestion)[])
     setReady(true)
   }, [type, config.questionCount])
   const [answers, setAnswers] = useState<Map<string, Answer>>(new Map())
@@ -34,6 +35,15 @@ export function useInterview(type: InterviewType) {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const startTimeRef = useRef(Date.now())
   const questionStartRef = useRef(Date.now())
+
+  useEffect(() => {
+    setAnswers(new Map())
+    setIsFinished(false)
+    setSessionId(null)
+    setCurrentIndex(0)
+    startTimeRef.current = Date.now()
+    questionStartRef.current = Date.now()
+  }, [type])
 
   const currentQuestion = questions[currentIndex]
   const totalQuestions = questions.length

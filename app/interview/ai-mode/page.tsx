@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,16 +9,25 @@ import { useAIInterview } from '@/lib/use-ai-interview'
 import { VoiceRecorder } from '@/components/interview/voice-recorder'
 import { QuestionProgress } from '@/components/interview/progress-bar'
 import { ArrowLeft } from 'lucide-react'
+import { toast } from 'sonner'
+import { getInterviewMode } from '@/lib/interview-catalog'
 
 export default function AIInterviewPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const modeId = searchParams.get('mode') ?? 'ai-interviewer'
+  const [config, setConfig] = useState<ReturnType<typeof getInterviewMode> | undefined>(undefined)
+
+  useEffect(() => {
+    setConfig(getInterviewMode(modeId))
+  }, [modeId])
   const {
     ready,
     questions,
     currentQuestion,
     currentIndex,
     totalQuestions,
-    progress,
+    answers,
     isFinished,
     sessionId,
     initializeInterview,
@@ -26,7 +35,7 @@ export default function AIInterviewPage() {
     goToNext,
     goToPrevious,
     finishInterview,
-  } = useAIInterview()
+  } = useAIInterview(modeId, config ?? getInterviewMode('ai-interviewer')!)
 
   useEffect(() => {
     initializeInterview()
@@ -38,6 +47,22 @@ export default function AIInterviewPage() {
       router.push(`/results/${sessionId}`)
     }
   }, [isFinished, sessionId, router])
+
+  if (config === undefined) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+        <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (!config || config.kind !== 'ai-interviewer') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+        <p className="text-muted-foreground">AI interview mode not found.</p>
+      </div>
+    )
+  }
 
   if (!ready) {
     return (
@@ -71,7 +96,7 @@ export default function AIInterviewPage() {
               </Button>
             </Link>
             <div className="text-center">
-              <h1 className="text-lg font-semibold">AI Interviewer</h1>
+              <h1 className="text-lg font-semibold">{config.label}</h1>
               <p className="text-xs text-muted-foreground">
                 Question {currentIndex + 1} of {totalQuestions}
               </p>
@@ -87,8 +112,8 @@ export default function AIInterviewPage() {
           <QuestionProgress 
             current={currentIndex} 
             total={totalQuestions}
-            answeredIds={new Set()}
-            questionIds={questions.map((q: any) => q.id)}
+            answeredIds={new Set(answers.map((answer) => answer.questionId))}
+            questionIds={questions.map((q) => q.id)}
             onJump={() => {}}
           />
         </div>
@@ -129,8 +154,16 @@ export default function AIInterviewPage() {
 
           {currentIndex === totalQuestions - 1 ? (
             <Button
-              onClick={() => {
-                finishInterview()
+              onClick={async () => {
+                try {
+                  await finishInterview()
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error
+                      ? error.message
+                      : 'Unable to save the AI interview results.'
+                  )
+                }
               }}
             >
               Finish Interview

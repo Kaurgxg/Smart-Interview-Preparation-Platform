@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useState, useCallback, useMemo } from "react"
+import { use, useState, useCallback, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -26,10 +26,10 @@ import { ViolationBanner } from "@/components/interview/violation-banner"
 import { QuestionProgress } from "@/components/interview/progress-bar"
 import { QuestionCard } from "@/components/interview/question-card"
 import { CodingEditor } from "@/components/interview/coding-editor"
-import { useInterview } from "@/lib/use-interview"
+import { useInterview, type StandardInterviewType } from "@/lib/use-interview"
 import { useAntiCheat } from "@/lib/use-anti-cheat"
-import type { InterviewType, Question, CodingQuestion } from "@/lib/types"
-import { INTERVIEW_TYPE_CONFIG } from "@/lib/types"
+import { getInterviewMode } from "@/lib/interview-catalog"
+import type { InterviewModeConfig, InterviewType, Question, CodingQuestion } from "@/lib/types"
 import {
   Brain,
   ChevronLeft,
@@ -47,9 +47,27 @@ export default function InterviewPage({
 }: {
   params: Promise<{ type: string }>
 }) {
+  const router = useRouter()
   const { type: rawType } = use(params)
   const type = rawType as InterviewType
-  const config = INTERVIEW_TYPE_CONFIG[type]
+  const [config, setConfig] = useState<InterviewModeConfig | null | undefined>(undefined)
+
+  useEffect(() => {
+    setConfig(getInterviewMode(type))
+  }, [type])
+
+  if (config === undefined) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+        <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (config?.kind === "ai-interviewer") {
+    router.push(`/interview/ai-mode?mode=${encodeURIComponent(type)}`)
+    return null
+  }
 
   if (!config) {
     return (
@@ -71,15 +89,15 @@ export default function InterviewPage({
     )
   }
 
-  return <InterviewSession type={type} config={config} />
+  return <InterviewSession type={type as StandardInterviewType} config={config} />
 }
 
 function InterviewSession({
   type,
   config,
 }: {
-  type: InterviewType
-  config: (typeof INTERVIEW_TYPE_CONFIG)[InterviewType]
+  type: StandardInterviewType
+  config: InterviewModeConfig
 }) {
   const router = useRouter()
   const {
@@ -95,23 +113,24 @@ function InterviewSession({
     goToPrevious,
     finishInterview,
     getAnswer,
-  } = useInterview(type)
+  } = useInterview(type, config)
 
   const [codeAnswers, setCodeAnswers] = useState<Map<string, string>>(new Map())
   const [editedCodeQuestions, setEditedCodeQuestions] = useState<Set<string>>(new Set())
 
-  // Initialize coding starter code once questions are ready
-  const [codeInitialized, setCodeInitialized] = useState(false)
-  if (ready && !codeInitialized) {
-    const map = new Map<string, string>()
-    for (const q of questions) {
-      if (isCodingQ(q)) {
-        map.set(q.id, q.starterCode)
+  useEffect(() => {
+    if (!ready) return
+
+    const nextCodeAnswers = new Map<string, string>()
+    for (const question of questions) {
+      if (isCodingQ(question)) {
+        nextCodeAnswers.set(question.id, question.starterCode)
       }
     }
-    setCodeAnswers(map)
-    setCodeInitialized(true)
-  }
+
+    setCodeAnswers(nextCodeAnswers)
+    setEditedCodeQuestions(new Set())
+  }, [ready, questions])
 
   const handleFinish = useCallback(
     (violations: number) => {

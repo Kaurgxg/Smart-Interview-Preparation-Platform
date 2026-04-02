@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { v4 as uuidv4 } from 'uuid'
 import type { AIQuestion, AIAnswer } from './types'
-import { INTERVIEW_TYPE_CONFIG } from './types'
+import type { InterviewModeConfig, InterviewType } from './types'
 import { getQuestions } from './questions'
+import { saveAISession } from './store'
 
-export function useAIInterview() {
+export function useAIInterview(modeId: InterviewType, config: InterviewModeConfig) {
   const [questions, setQuestions] = useState<AIQuestion[]>([])
   const [ready, setReady] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -16,14 +16,13 @@ export function useAIInterview() {
 
   // Initialize interview on mount
   const initializeInterview = useCallback(() => {
-    const config = INTERVIEW_TYPE_CONFIG['ai-interviewer']
-    const loadedQuestions = getQuestions('ai-interviewer', config.questionCount) as AIQuestion[]
+    const loadedQuestions = getQuestions(modeId, config.questionCount) as AIQuestion[]
     setQuestions(loadedQuestions)
     setAnswers([])
     setCurrentIndex(0)
     setIsFinished(false)
     setReady(true)
-  }, [])
+  }, [config.questionCount, modeId])
 
   const currentQuestion = ready ? questions[currentIndex] : null
   const totalQuestions = questions.length
@@ -68,19 +67,16 @@ export function useAIInterview() {
     }
   }, [currentIndex])
 
-  const finishInterview = useCallback(() => {
-    setIsFinished(true)
-    // Save to localStorage
+  const finishInterview = useCallback(async () => {
     const session = {
       sessionId,
-      type: 'ai-interviewer',
       questions,
       answers,
-      startTime: Date.now(),
-      endTime: Date.now(),
+      modeId,
     }
-    const existingSessions = JSON.parse(localStorage.getItem('aiInterviews') || '[]')
-    localStorage.setItem('aiInterviews', JSON.stringify([...existingSessions, session]))
+
+    await saveAISession(session)
+    setIsFinished(true)
   }, [sessionId, questions, answers])
 
   const getAnswer = useCallback(

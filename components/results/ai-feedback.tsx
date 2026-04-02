@@ -61,26 +61,28 @@ export function AiFeedback({ session }: AiFeedbackProps) {
       if (!response.ok) {
         const errorData = await response.json().catch(() => null)
         throw new Error(
-          errorData?.error || "Failed to get feedback. Please check your API key."
+          errorData?.error || "Failed to get feedback right now."
         )
       }
 
-      if (!response.body) {
-        throw new Error("No response body")
+      const contentType = response.headers.get("content-type") || ""
+
+      if (contentType.includes("application/json")) {
+        const data = await response.json().catch(() => null)
+        const text = data?.feedback || data?.message || ""
+        if (!text) {
+          throw new Error("AI feedback returned an empty response.")
+        }
+        setFeedback(text)
+        return
       }
 
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let fullContent = ""
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value, { stream: true })
-        fullContent += chunk
-        setFeedback(fullContent)
+      const text = (await response.text()).trim()
+      if (!text) {
+        throw new Error("AI feedback returned an empty response.")
       }
+
+      setFeedback(text)
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Something went wrong"
