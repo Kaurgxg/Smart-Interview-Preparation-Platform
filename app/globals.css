@@ -3,42 +3,42 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.13 0.015 280);
-  --foreground: oklch(0.95 0.01 280);
-  --card: oklch(0.17 0.015 280);
-  --card-foreground: oklch(0.95 0.01 280);
-  --popover: oklch(0.17 0.015 280);
-  --popover-foreground: oklch(0.95 0.01 280);
-  --primary: oklch(0.65 0.2 270);
+  --background: oklch(0.2 0.04 238);
+  --foreground: oklch(0.97 0.01 210);
+  --card: oklch(0.27 0.045 238);
+  --card-foreground: oklch(0.97 0.01 210);
+  --popover: oklch(0.28 0.04 238);
+  --popover-foreground: oklch(0.97 0.01 210);
+  --primary: oklch(0.81 0.19 80);
   --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.22 0.02 280);
-  --secondary-foreground: oklch(0.9 0.01 280);
-  --muted: oklch(0.22 0.015 280);
-  --muted-foreground: oklch(0.6 0.02 280);
-  --accent: oklch(0.25 0.03 280);
-  --accent-foreground: oklch(0.95 0.01 280);
+  --secondary: oklch(0.34 0.06 226);
+  --secondary-foreground: oklch(0.95 0.01 210);
+  --muted: oklch(0.3 0.035 232);
+  --muted-foreground: oklch(0.82 0.03 220);
+  --accent: oklch(0.77 0.15 208);
+  --accent-foreground: oklch(0.96 0.01 210);
   --destructive: oklch(0.55 0.22 25);
   --destructive-foreground: oklch(0.95 0 0);
-  --border: oklch(0.25 0.02 280);
-  --input: oklch(0.22 0.02 280);
-  --ring: oklch(0.65 0.2 270);
-  --chart-1: oklch(0.65 0.2 270);
-  --chart-2: oklch(0.72 0.15 195);
-  --chart-3: oklch(0.78 0.16 85);
-  --chart-4: oklch(0.7 0.18 160);
-  --chart-5: oklch(0.65 0.2 20);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.15 0.015 280);
-  --sidebar-foreground: oklch(0.95 0.01 280);
-  --sidebar-primary: oklch(0.65 0.2 270);
+  --border: oklch(0.44 0.05 228);
+  --input: oklch(0.26 0.035 230);
+  --ring: oklch(0.81 0.19 80);
+  --chart-1: oklch(0.81 0.19 80);
+  --chart-2: oklch(0.77 0.15 208);
+  --chart-3: oklch(0.72 0.14 150);
+  --chart-4: oklch(0.74 0.18 24);
+  --chart-5: oklch(0.74 0.14 300);
+  --radius: 1rem;
+  --sidebar: oklch(0.24 0.04 236);
+  --sidebar-foreground: oklch(0.97 0.01 210);
+  --sidebar-primary: oklch(0.81 0.19 80);
   --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.22 0.02 280);
-  --sidebar-accent-foreground: oklch(0.95 0.01 280);
-  --sidebar-border: oklch(0.25 0.02 280);
-  --sidebar-ring: oklch(0.65 0.2 270);
-  --success: oklch(0.7 0.18 160);
+  --sidebar-accent: oklch(0.34 0.06 226);
+  --sidebar-accent-foreground: oklch(0.97 0.01 210);
+  --sidebar-border: oklch(0.42 0.045 228);
+  --sidebar-ring: oklch(0.81 0.19 80);
+  --success: oklch(0.75 0.16 152);
   --success-foreground: oklch(0.98 0 0);
-  --warning: oklch(0.78 0.16 85);
+  --warning: oklch(0.82 0.17 76);
   --warning-foreground: oklch(0.15 0 0);
 }
 
@@ -91,7 +91,56 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(circle at 18% 8%, rgb(255 198 64 / 0.28), transparent 24%),
+      radial-gradient(circle at 82% 12%, rgb(64 214 255 / 0.24), transparent 22%),
+      radial-gradient(circle at 50% 100%, rgb(153 106 255 / 0.14), transparent 34%),
+      linear-gradient(180deg, rgb(18 27 56 / 0.98), rgb(24 36 78 / 1));
+    min-height: 100vh;
+  }
+}
+
+@layer utilities {
+  .page-shell {
+    @apply relative isolate overflow-hidden;
+  }
+
+  .page-shell::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 20% 20%, rgb(255 201 72 / 0.13), transparent 20rem),
+      radial-gradient(circle at 80% 8%, rgb(84 224 255 / 0.12), transparent 18rem),
+      radial-gradient(circle at 50% 60%, rgb(169 115 255 / 0.08), transparent 24rem);
+    opacity: 1;
+    z-index: -1;
+  }
+
+  .section-shell {
+    @apply rounded-[2rem] border border-white/12 bg-card/72 shadow-[0_20px_80px_rgba(4,10,36,0.24)] backdrop-blur-xl;
+  }
+
+  .hero-mesh {
+    background-image:
+      linear-gradient(rgb(255 255 255 / 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 0.02) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .highlight-ring {
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.1),
+      0 14px 36px rgb(6 15 58 / 0.3);
+  }
+
+  .soft-panel {
+    @apply border border-white/12 bg-white/6 backdrop-blur-md;
   }
 }

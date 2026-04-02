@@ -325,29 +325,29 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+    <div className="page-shell min-h-screen bg-background text-foreground">
+      <header className="sticky top-0 z-40 border-b border-white/8 bg-background/70 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <div className="highlight-ring flex size-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
               <Shield className="size-4" />
             </div>
             <div>
-              <span className="text-sm font-bold">Admin Panel</span>
+              <span className="text-sm font-bold uppercase tracking-[0.22em]">Admin Panel</span>
               <p className="text-xs text-muted-foreground">{user?.email}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push('/dashboard')}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <LayoutDashboard className="size-3.5" />
               Dashboard
             </button>
             <button
               onClick={() => void handleSignOut()}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               <LogOut className="size-3.5" />
               Sign out
@@ -357,16 +357,17 @@ export default function AdminPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-10 flex items-center justify-between gap-4">
+        <div className="section-shell mb-8 flex flex-col gap-5 rounded-[2rem] px-6 py-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Modes and Questions</h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs uppercase tracking-[0.28em] text-primary">Catalog control</p>
+            <h1 className="mt-2 text-3xl font-bold">Modes and Questions</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
               Add custom modes, manage questions, and control what candidates actually see.
             </p>
           </div>
           <button
             onClick={openCreateMode}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            className="flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <Plus className="size-4" />
             New Mode
@@ -377,10 +378,10 @@ export default function AdminPage() {
           {modes.map((mode) => (
             <div
               key={mode.id}
-              className={`rounded-2xl border p-5 transition-colors ${
+              className={`rounded-[1.75rem] border p-5 transition-all ${
                 selectedModeId === mode.id
-                  ? 'border-primary bg-primary/5'
-                  : 'border-border bg-card'
+                  ? 'border-primary/35 bg-primary/10 shadow-[0_20px_50px_rgba(0,0,0,0.16)]'
+                  : 'border-white/10 bg-white/4'
               }`}
             >
               <div className="flex items-start justify-between gap-3">
@@ -401,13 +402,13 @@ export default function AdminPage() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => openEditMode(mode)}
-                      className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     >
                       <Pencil className="size-3.5" />
                     </button>
                     <button
                       onClick={() => removeMode(mode)}
-                      className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                      className="rounded-xl p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                     >
                       <Trash2 className="size-3.5" />
                     </button>
@@ -420,7 +421,7 @@ export default function AdminPage() {
 
         {selectedMode && (
           <>
-            <div className="mb-6 flex items-center justify-between gap-4">
+            <div className="section-shell mb-6 flex flex-col gap-4 rounded-[1.75rem] px-5 py-5 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-xl font-semibold">{selectedMode.label} Questions</h2>
                 <p className="text-sm text-muted-foreground">
@@ -429,16 +430,16 @@ export default function AdminPage() {
               </div>
               <button
                 onClick={openCreateQuestion}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                className="flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
               >
                 <Plus className="size-4" />
                 Add Question
               </button>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-border">
+            <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/4 backdrop-blur-xl">
               <table className="w-full text-sm">
-                <thead className="border-b border-border bg-muted/50">
+                <thead className="border-b border-white/10 bg-white/4">
                   <tr>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">Question</th>
                     <th className="px-4 py-3 text-left font-medium text-muted-foreground">Kind</th>
@@ -455,7 +456,7 @@ export default function AdminPage() {
                     </tr>
                   ) : (
                     questions.map((question) => (
-                      <tr key={question.id} className="hover:bg-muted/30">
+                      <tr key={question.id} className="hover:bg-white/4">
                         <td className="px-4 py-3">
                           <p className="font-medium">
                             {question.kind === 'coding' ? question.title : question.question}
@@ -483,7 +484,7 @@ export default function AdminPage() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => openEditQuestion(question)}
-                              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                              className="rounded-xl p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                             >
                               <Pencil className="size-3.5" />
                             </button>
@@ -493,7 +494,7 @@ export default function AdminPage() {
                                 toast.success('Question deleted.')
                                 setQuestions(getQuestionsForAdmin(selectedMode.id))
                               }}
-                              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                              className="rounded-xl p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                             >
                               <Trash2 className="size-3.5" />
                             </button>

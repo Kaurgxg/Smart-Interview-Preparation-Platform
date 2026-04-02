@@ -5,16 +5,16 @@ import { SiteHeader } from "@/components/landing/site-header"
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="page-shell min-h-screen bg-background">
       <SiteHeader />
 
-      <main className="mx-auto max-w-5xl">
+      <main className="mx-auto flex max-w-6xl flex-col gap-8 px-4 pb-10 pt-4 md:px-6">
         <Hero />
         <Features />
         <InterviewTypes />
       </main>
 
-      <footer className="border-t border-border/50 py-8 text-center text-sm text-muted-foreground">
+      <footer className="border-t border-white/8 py-8 text-center text-sm text-muted-foreground">
         <p>InterviewAce - AI-powered interview preparation platform</p>
       </footer>
     </div>
