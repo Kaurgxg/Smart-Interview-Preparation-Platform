@@ -20,7 +20,7 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
 
-    const { error: authError, role: userRole } = await signIn(email, password)
+    const { error: authError, role: userRole } = await signIn(email.trim(), password)
 
     if (authError) {
       setError(authError)
@@ -30,6 +30,7 @@ export default function LoginPage() {
 
     router.replace(userRole === 'admin' ? '/admin' : '/dashboard')
     router.refresh()
+    setLoading(false)
   }
 
   return (

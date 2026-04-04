@@ -20,6 +20,19 @@ interface UseAuthReturn {
   signOut: () => Promise<void>
 }
 
+function getRoleFromMetadata(metadata: unknown): UserRole {
+  if (
+    metadata &&
+    typeof metadata === 'object' &&
+    'role' in metadata &&
+    metadata.role === 'admin'
+  ) {
+    return 'admin'
+  }
+
+  return 'user'
+}
+
 export function useAuth(): UseAuthReturn {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -31,17 +44,23 @@ export function useAuth(): UseAuthReturn {
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) { setUser(null); setIsLoading(false); return }
 
+      const fallbackRole = getRoleFromMetadata(authUser.user_metadata)
+      const fallbackFullName =
+        typeof authUser.user_metadata?.full_name === 'string'
+          ? authUser.user_metadata.full_name
+          : ''
+
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', authUser.id)
-        .single()
+        .maybeSingle()
 
       setUser({
         id: authUser.id,
         email: authUser.email ?? '',
-        fullName: profile?.full_name ?? '',
-        role: profile?.role ?? 'user',
+        fullName: profile?.full_name ?? fallbackFullName,
+        role: profile?.role ?? fallbackRole,
       })
       setIsLoading(false)
     }

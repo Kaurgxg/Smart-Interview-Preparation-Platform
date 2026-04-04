@@ -20,8 +20,23 @@ export default function SignupPage() {
     e.preventDefault()
     setError('')
 
+    if (!fullName.trim()) {
+      setError('Full name is required.')
+      return
+    }
+
+    if (!email.trim()) {
+      setError('Email is required.')
+      return
+    }
+
     if (password.length < 8) {
       setError('Password must be at least 8 characters.')
+      return
+    }
+
+    if (role === 'admin' && !adminCode.trim()) {
+      setError('Admin access code is required.')
       return
     }
 
