@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAIInterview } from '@/lib/use-ai-interview'
 import { VoiceRecorder } from '@/components/interview/voice-recorder'
 import { QuestionProgress } from '@/components/interview/progress-bar'
@@ -12,7 +12,18 @@ import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { getInterviewMode } from '@/lib/interview-catalog'
 
-export default function AIInterviewPage() {
+function AIInterviewPageFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
+      <div className="flex flex-col items-center gap-4">
+        <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        <p className="text-sm text-muted-foreground">Preparing your AI interview...</p>
+      </div>
+    </div>
+  )
+}
+
+function AIInterviewPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const modeId = searchParams.get('mode') ?? 'ai-interviewer'
@@ -176,5 +187,13 @@ export default function AIInterviewPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function AIInterviewPage() {
+  return (
+    <Suspense fallback={<AIInterviewPageFallback />}>
+      <AIInterviewPageContent />
+    </Suspense>
   )
 }
