@@ -15,7 +15,7 @@ import {
   X,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useAuth } from '@/hooks/use-auth'
+import { useProtectedRoute } from '@/hooks/use-protected-route'
 import {
   AVAILABLE_MODE_ICONS,
   deleteInterviewMode,
@@ -78,7 +78,7 @@ function slugifyModeId(value: string) {
 
 export default function AdminPage() {
   const router = useRouter()
-  const { user, isAdmin, isLoading, signOut } = useAuth()
+  const { user, isAdmin, isLoading, signOut } = useProtectedRoute({ requireAdmin: true })
 
   const [modes, setModes] = useState<InterviewModeConfig[]>([])
   const [selectedModeId, setSelectedModeId] = useState<InterviewType | null>(null)
@@ -90,12 +90,6 @@ export default function AdminPage() {
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
   const [questionForm, setQuestionForm] = useState(emptyQuestionForm)
   const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    if (!isLoading && (!user || !isAdmin)) {
-      router.push('/dashboard')
-    }
-  }, [isAdmin, isLoading, router, user])
 
   useEffect(() => {
     const loadCatalog = () => {
@@ -316,7 +310,7 @@ export default function AdminPage() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading || !user || !isAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="size-6 animate-spin text-primary" />

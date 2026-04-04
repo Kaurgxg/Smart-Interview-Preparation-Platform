@@ -28,11 +28,8 @@ export default function LoginPage() {
       return
     }
 
-    if (userRole === 'admin') {
-      router.push('/admin')
-    } else {
-      router.push('/')
-    }
+    router.replace(userRole === 'admin' ? '/admin' : '/dashboard')
+    router.refresh()
   }
 
   return (
@@ -95,7 +92,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          © {new Date().getFullYear()} InterviewAce. All rights reserved.
+          Copyright {new Date().getFullYear()} InterviewAce. All rights reserved.
         </p>
       </div>
 
@@ -207,3 +204,4 @@ export default function LoginPage() {
     </div>
   )
 }
+

@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAIInterview } from '@/lib/use-ai-interview'
 import { VoiceRecorder } from '@/components/interview/voice-recorder'
 import { QuestionProgress } from '@/components/interview/progress-bar'
+import { useProtectedRoute } from '@/hooks/use-protected-route'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { getInterviewMode } from '@/lib/interview-catalog'
@@ -25,6 +26,7 @@ function AIInterviewPageFallback() {
 
 function AIInterviewPageContent() {
   const router = useRouter()
+  const { user, isLoading: authLoading } = useProtectedRoute()
   const searchParams = useSearchParams()
   const modeId = searchParams.get('mode') ?? 'ai-interviewer'
   const [config, setConfig] = useState<ReturnType<typeof getInterviewMode> | undefined>(undefined)
@@ -59,7 +61,7 @@ function AIInterviewPageContent() {
     }
   }, [isFinished, sessionId, router])
 
-  if (config === undefined) {
+  if (authLoading || !user || config === undefined) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />

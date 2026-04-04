@@ -28,6 +28,7 @@ import { QuestionCard } from "@/components/interview/question-card"
 import { CodingEditor } from "@/components/interview/coding-editor"
 import { useInterview, type StandardInterviewType } from "@/lib/use-interview"
 import { useAntiCheat } from "@/lib/use-anti-cheat"
+import { useProtectedRoute } from "@/hooks/use-protected-route"
 import { getInterviewMode } from "@/lib/interview-catalog"
 import type { InterviewModeConfig, InterviewType, Question, CodingQuestion } from "@/lib/types"
 import {
@@ -48,6 +49,7 @@ export default function InterviewPage({
   params: Promise<{ type: string }>
 }) {
   const router = useRouter()
+  const { user, isLoading: authLoading } = useProtectedRoute()
   const { type: rawType } = use(params)
   const type = rawType as InterviewType
   const [config, setConfig] = useState<InterviewModeConfig | null | undefined>(undefined)
@@ -56,7 +58,7 @@ export default function InterviewPage({
     setConfig(getInterviewMode(type))
   }, [type])
 
-  if (config === undefined) {
+  if (authLoading || !user || config === undefined) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-foreground">
         <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />

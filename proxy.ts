@@ -46,35 +46,14 @@ export async function proxy(request: NextRequest) {
   }
   const pathname = request.nextUrl.pathname
 
-  const publicRoutes = ['/', '/login', '/signup']
-  if (publicRoutes.includes(pathname)) {
-    if (user && (pathname === '/login' || pathname === '/signup')) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-      const dest = profile?.role === 'admin' ? '/admin' : '/dashboard'
-      return NextResponse.redirect(new URL(dest, request.url))
-    }
-
-    return response
-  }
-
-  if (!user) {
-    return NextResponse.redirect(new URL('/login', request.url))
-  }
-
-  if (pathname.startsWith('/admin')) {
+  if (user && (pathname === '/login' || pathname === '/signup')) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
-
-    if (profile?.role !== 'admin') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
-    }
+    const dest = profile?.role === 'admin' ? '/admin' : '/dashboard'
+    return NextResponse.redirect(new URL(dest, request.url))
   }
 
   return response

@@ -28,7 +28,7 @@ import { WeakTopics } from "@/components/dashboard/weak-topics"
 import { HistoryTable } from "@/components/dashboard/history-table"
 import { getInterviewModes, subscribeToInterviewCatalogUpdates } from "@/lib/interview-catalog"
 import { getStats, getHistory, clearHistory } from "@/lib/store"
-import { useAuth } from "@/hooks/use-auth"
+import { useProtectedRoute } from "@/hooks/use-protected-route"
 import type { InterviewModeConfig, InterviewStats, InterviewSession } from "@/lib/types"
 import {
   Brain,
@@ -54,7 +54,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { user, isAdmin, isLoading: authLoading, signOut } = useAuth()
+  const { user, isAdmin, isLoading: authLoading, signOut } = useProtectedRoute()
   const [stats, setStats] = useState<InterviewStats | null>(null)
   const [sessions, setSessions] = useState<InterviewSession[]>([])
   const [clearingData, setClearingData] = useState(false)
@@ -126,7 +126,7 @@ export default function DashboardPage() {
     router.push("/login")
   }
 
-  if (authLoading || !stats) {
+  if (authLoading || !user || !stats) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex items-center gap-2 text-muted-foreground">

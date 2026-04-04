@@ -133,7 +133,7 @@ export default function SignupPage() {
         </div>
 
         <p className="text-xs text-muted-foreground">
-          © {new Date().getFullYear()} InterviewAce. All rights reserved.
+          Copyright {new Date().getFullYear()} InterviewAce. All rights reserved.
         </p>
       </div>
 
@@ -277,3 +277,4 @@ export default function SignupPage() {
     </div>
   )
 }
+
