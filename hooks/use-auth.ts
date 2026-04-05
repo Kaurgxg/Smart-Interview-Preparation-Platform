@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { getSupabase } from '@/lib/supabase'
+import type { User } from '@supabase/supabase-js'
 import type { UserRole } from '@/lib/auth'
 
 interface AuthUser {
@@ -40,9 +41,12 @@ export function useAuth(): UseAuthReturn {
   useEffect(() => {
     const supabase = getSupabase()
 
-    const loadUser = async () => {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      if (!authUser) { setUser(null); setIsLoading(false); return }
+    const loadUser = async (authUser: User | null) => {
+      if (!authUser) {
+        setUser(null)
+        setIsLoading(false)
+        return
+      }
 
       const fallbackRole = getRoleFromMetadata(authUser.user_metadata)
       const fallbackFullName =
@@ -65,11 +69,18 @@ export function useAuth(): UseAuthReturn {
       setIsLoading(false)
     }
 
-    loadUser()
+    const loadInitialUser = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      await loadUser(session?.user ?? null)
+    }
+
+    void loadInitialUser()
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      loadUser()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      void loadUser(session?.user ?? null)
     })
 
     return () => subscription.unsubscribe()

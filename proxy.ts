@@ -15,6 +15,12 @@ function getRoleFromMetadata(metadata: unknown): 'user' | 'admin' {
 }
 
 export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+
+  if (pathname !== '/login' && pathname !== '/signup') {
+    return NextResponse.next({ request })
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -48,16 +54,17 @@ export async function proxy(request: NextRequest) {
   let user = null
 
   try {
-    const { data } = await supabase.auth.getUser()
-    user = data.user
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    user = session?.user ?? null
   } catch (error) {
     console.error('Supabase auth lookup failed in proxy', {
-      pathname: request.nextUrl.pathname,
+      pathname,
       error: error instanceof Error ? error.message : 'Unknown error',
     })
     return response
   }
-  const pathname = request.nextUrl.pathname
 
   if (user && (pathname === '/login' || pathname === '/signup')) {
     const { data: profile } = await supabase
@@ -76,5 +83,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/).*)'],
+  matcher: ['/login', '/signup'],
 }

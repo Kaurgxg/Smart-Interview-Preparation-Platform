@@ -81,8 +81,9 @@ export async function signOut(): Promise<void> {
 export async function getCurrentRole(): Promise<UserRole | null> {
   const supabase = getSupabase()
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    data: { session },
+  } = await supabase.auth.getSession()
+  const user = session?.user ?? null
   if (!user) return null
 
   const fallbackRole = getRoleFromMetadata(user.user_metadata)
@@ -99,8 +100,9 @@ export async function getCurrentRole(): Promise<UserRole | null> {
 export async function getCurrentUser() {
   const supabase = getSupabase()
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    data: { session },
+  } = await supabase.auth.getSession()
+  const user = session?.user ?? null
   if (!user) return null
 
   const { data: profile } = await supabase

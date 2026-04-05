@@ -139,8 +139,10 @@ function buildAIHistoryEntry(session: AIInterviewSessionRecord): InterviewSessio
 // ─── Supabase helpers ─────────────────────────────────────────────────────────
 async function getCurrentUserId(): Promise<string | null> {
   const supabase = getSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-  return user?.id ?? null
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  return session?.user?.id ?? null
 }
 
 // ─── Save session ─────────────────────────────────────────────────────────────
@@ -230,9 +232,7 @@ export async function getHistory(): Promise<InterviewSession[]> {
 }
 
 // ─── Get stats ────────────────────────────────────────────────────────────────
-export async function getStats(): Promise<InterviewStats> {
-  const sessions = await getHistory()
-
+export function buildStatsFromSessions(sessions: InterviewSession[]): InterviewStats {
   if (sessions.length === 0) {
     return { totalAttempts: 0, averageScore: 0, bestScore: 0, totalTime: 0, weakTopics: [], scoreHistory: [] }
   }
@@ -274,6 +274,11 @@ export async function getStats(): Promise<InterviewStats> {
     weakTopics,
     scoreHistory,
   }
+}
+
+export async function getStats(): Promise<InterviewStats> {
+  const sessions = await getHistory()
+  return buildStatsFromSessions(sessions)
 }
 
 // ─── Save AI interview session ────────────────────────────────────────────────

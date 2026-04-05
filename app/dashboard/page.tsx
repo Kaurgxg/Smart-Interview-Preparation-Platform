@@ -27,7 +27,7 @@ import { PerformanceChart } from "@/components/dashboard/performance-chart"
 import { WeakTopics } from "@/components/dashboard/weak-topics"
 import { HistoryTable } from "@/components/dashboard/history-table"
 import { getInterviewModes, subscribeToInterviewCatalogUpdates } from "@/lib/interview-catalog"
-import { getStats, getHistory, clearHistory } from "@/lib/store"
+import { buildStatsFromSessions, getHistory, clearHistory } from "@/lib/store"
 import { useProtectedRoute } from "@/hooks/use-protected-route"
 import type { InterviewModeConfig, InterviewStats, InterviewSession } from "@/lib/types"
 import {
@@ -61,18 +61,8 @@ export default function DashboardPage() {
   const [modes, setModes] = useState<InterviewModeConfig[]>([])
 
   const loadData = useCallback(async () => {
-    const [rawStats, history] = await Promise.all([getStats(), getHistory()])
-
-    const safeStats: InterviewStats = {
-      totalAttempts: rawStats?.totalAttempts ?? 0,
-      averageScore: rawStats?.averageScore ?? 0,
-      bestScore: rawStats?.bestScore ?? 0,
-      totalTime: rawStats?.totalTime ?? 0,
-      weakTopics: rawStats?.weakTopics ?? [],
-      scoreHistory: rawStats?.scoreHistory ?? [],
-    }
-
-    setStats(safeStats)
+    const history = await getHistory()
+    setStats(buildStatsFromSessions(history))
     setSessions(history ?? [])
   }, [])
 
